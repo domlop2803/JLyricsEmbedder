@@ -12,7 +12,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class AZLyrics {
-
     public static final String domain = "www.azlyrics.com/";
 
     public static Lyrics Find(String artist, String song) {
