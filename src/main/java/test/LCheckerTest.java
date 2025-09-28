@@ -11,6 +11,10 @@ import com.mpatric.mp3agic.UnsupportedTagException;
 
 import FileParser.Parser;
 import LChecker.Checker;
+import LClasses.Lyrics;
+import LClasses.Track;
+import LFinder.LyricsHandler;
+import LFinder.LyricsHandler.LyricFinderListener;
 
 public class LCheckerTest {
     private static void CheckerEmbedderTest(){
@@ -24,21 +28,52 @@ public class LCheckerTest {
         } catch (UnsupportedTagException | InvalidDataException | IOException e) {
             e.printStackTrace();
         }
-        Boolean lyrics = LChecker.Checker.mp3HasLyrics("src\\main\\java\\test\\TestFiles\\RingOfFireLyrics.mp3");
-        Boolean noLyrics = !LChecker.Checker.mp3HasLyrics("src\\main\\java\\test\\TestFiles\\RingOfFireNoLyrics.mp3");
-        Boolean unsupported = LChecker.Checker.mp3HasLyrics("src\\main\\java\\test\\TestFiles\\RingOfFireUnsupported.gba")==null;
+        Boolean lyrics = Checker.mp3HasLyrics("src\\main\\java\\test\\TestFiles\\RingOfFireLyrics.mp3");
+        Boolean noLyrics = !Checker.mp3HasLyrics("src\\main\\java\\test\\TestFiles\\RingOfFireNoLyrics.mp3");
+        Boolean unsupported = Checker.mp3HasLyrics("src\\main\\java\\test\\TestFiles\\RingOfFireUnsupported.gba")==null;
         System.out.println("Lyrics checker test (set and read lyrics): "+setLyricsCheck);
         System.out.println("Recognize file has lyrics: "+lyrics);
         System.out.println("Recognize file doesn't have lyrics: "+noLyrics);
         System.out.println("Recognize file unsupported extension: "+unsupported);
     }
+
+
     private static void FileParserTest(){
         System.out.print("-------------------------------\nFile parser test:\n");
         File folder = new File("src\\main\\java\\test");
         Parser.parse(folder);
     }
+
+    private static void FinderTest(String artist, String songName){
+        LyricsHandler.Find(artist, songName, new LyricFinderListener() {
+
+            @Override
+            public void OnFound(Lyrics lyrics) {
+                System.out.println("Found -> "+lyrics);
+            }
+            @Override
+            public void OnNotFound(Track track) {
+                System.out.println("NotFound -> "+track);
+            }
+        });
+    }
+
+    private static void FindAndWriteTest(String artist, String songName, String filename){
+        LyricsHandler.Find(artist, songName, new LyricFinderListener() {
+            @Override
+            public void OnFound(Lyrics lyrics) {
+                Checker.mp3SetLyrics(filename, lyrics.getText());
+            }
+            @Override
+            public void OnNotFound(Track track) {
+                System.out.println("NotFound -> "+track);
+            }
+        });
+    }
+    
     public static void main(String[] args) throws UnsupportedTagException, InvalidDataException, UnsupportedAudioFileException, IOException{
-        CheckerEmbedderTest();
-        FileParserTest();
+        //CheckerEmbedderTest();
+        //FileParserTest();
+        FinderTest("johnny cash", "ring of fire");
     }
 }
