@@ -13,6 +13,8 @@ import com.mpatric.mp3agic.NotSupportedException;
 import com.mpatric.mp3agic.UnsupportedTagException;
 
 import FileParser.Parser;
+import LClasses.Lyrics;
+import LClasses.Track;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -99,6 +101,16 @@ public class Checker {
             e.printStackTrace();
         }
     }
+    public static Track mp3getTrack(File file){
+        Track res = null;
+        try {
+            Mp3File mp3 = new Mp3File(file);
+            res = new Track(mp3.getId3v2Tag().getTitle(), mp3.getId3v2Tag().getArtist());
+        } catch (UnsupportedTagException | InvalidDataException | IOException e) {
+            e.printStackTrace();
+        }
+        return res;
+    }
     public static void cleanFiles(File oldFile, File newFile){
         //Method needed for deleting the original file and renaming the updated file with the old one's name.
         try {
@@ -107,5 +119,8 @@ public class Checker {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+    public static void setLyrics(File file, Lyrics lyrics){
+
     }
 }

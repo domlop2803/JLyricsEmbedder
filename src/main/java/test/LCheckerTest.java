@@ -2,6 +2,9 @@ package test;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.concurrent.Semaphore;
 
 import javax.sound.sampled.UnsupportedAudioFileException;
 
@@ -58,6 +61,35 @@ public class LCheckerTest {
         });
     }
 
+    //Works, maybe implement a method in Parser that receives a list of files and a semaphore and parses them to find their lyrics
+    private static void SemaphoreTest(){
+        List<String> files = List.of("ring of fire","cry,cry,cry","heart of gold", "folsom prison blues");
+        Semaphore sem = new Semaphore(1);
+        for(String file:files){
+            try{
+                sem.acquire();
+                System.out.println("File "+files.indexOf(file)+ " got permit at "+LocalDateTime.now());
+                LyricsHandler.Find("johnny cash", file, new LyricFinderListener() {
+
+            @Override
+            public void OnFound(Lyrics lyrics) {
+                System.out.println("Found -> "+lyrics.getTitle());
+            System.out.println("File "+files.indexOf(file)+ " released permit at "+LocalDateTime.now());
+            sem.release();
+            }
+            @Override
+            public void OnNotFound(Track track) {
+                System.out.println("NotFound -> "+track);
+            System.out.println("File "+files.indexOf(file)+ " released permit at "+LocalDateTime.now());
+            sem.release();
+            }
+        });
+            } catch(InterruptedException e){
+                System.out.println(e);
+            }
+        }
+    }
+
     private static void FindAndWriteTest(String artist, String songName, String filename){
         LyricsHandler.Find(artist, songName, new LyricFinderListener() {
             @Override
@@ -74,6 +106,7 @@ public class LCheckerTest {
     public static void main(String[] args) throws UnsupportedTagException, InvalidDataException, UnsupportedAudioFileException, IOException{
         //CheckerEmbedderTest();
         //FileParserTest();
-        FinderTest("johnny cash", "ring of fire");
+        //FinderTest("johnny cash", "ring of fire");
+        SemaphoreTest();
     }
 }

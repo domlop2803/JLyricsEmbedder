@@ -1,10 +1,16 @@
 package FileParser;
 
 import java.io.File;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Semaphore;
 
 import LChecker.Checker;
+import LClasses.Lyrics;
+import LClasses.Track;
+import LFinder.LyricsHandler;
+import LFinder.LyricsHandler.LyricFinderListener;
 
 public class Parser {
     public static void parse(File folder){
@@ -29,6 +35,29 @@ public class Parser {
         }
         return;
     }
+    public static void processFiles(List<File> files, Semaphore sem){
+        for(File file:files){
+            Track track = getTrack(file);
+            try{
+                sem.acquire();
+                LyricsHandler.Find(track.getArtistNames(), track.getTrackName(), new LyricFinderListener() {
+
+                    @Override
+                    public void OnFound(Lyrics lyrics) {
+                        Checker.setLyrics(file, lyrics);
+                        sem.release();
+                    }
+
+                    @Override
+                    public void OnNotFound(Track track) {
+                        sem.release();
+                    }
+                });
+            } catch(InterruptedException e){
+                System.out.println(e);
+            }
+        }
+    }
 
     public static Boolean isSupported(File file){
         List<String> supported = Arrays.asList("mp3"); 
@@ -45,5 +74,10 @@ public class Parser {
     }
     public static String getFileExtension(String file){
         return getFileExtension(new File(file));
+    }
+    public static Track getTrack(File file){
+        if(getFileExtension(file).equals("mp3")){
+           return Checker.mp3getTrack(file);
+        } else return null;
     }
 }
