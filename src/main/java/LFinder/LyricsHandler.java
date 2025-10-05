@@ -8,7 +8,7 @@ public class LyricsHandler {
     public static void Find(Track track, LyricFinderListener lyricFinderListener){
 
         Thread thread=new Thread(new LyricFinderAsync(track,lyricFinderListener));
-        thread.setPriority(Thread.MAX_PRIORITY);
+        //thread.setPriority(Thread.MAX_PRIORITY);
         thread.start();
     }
     public static void Find(String artist, String song, LyricFinderListener lyricFinderListener){
@@ -35,19 +35,19 @@ public class LyricsHandler {
         //semaforo mas de x procesos a la vez
         public void run() {
                 Lyrics lyrics = LyricFinderUtil.getLyric(
-                        track.getArtistNames().split(",")[0]
-                        , track.getTrackName());
+                        track.getArtistNames().split(",")[0].split("/")[0]
+                        , track.getTrackName().split("-")[0]);
 
                 if (lyrics.getFlag() == Lyrics.POSITIVE_RESULT) {
                     lyricFinderListener.OnFound(SetTrack(lyrics, track));}
                 else{
-                    lyricFinderListener.OnNotFound(track);}
+                    lyricFinderListener.OnNotFound(lyrics);}
         }
     }
 
     //Interface for managing the possibilities after lyrics search finishes
     public interface LyricFinderListener {
         void OnFound(Lyrics foundLyrics);
-        void OnNotFound(Track track);
+        void OnNotFound(Lyrics notFoundLyricss);
     }
 }

@@ -2,6 +2,7 @@ package FileParser;
 
 import java.io.File;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Semaphore;
@@ -13,17 +14,20 @@ import LFinder.LyricsHandler;
 import LFinder.LyricsHandler.LyricFinderListener;
 
 public class Parser {
-    public static void parse(File folder){
-        if(folder.isFile()) return;
+    public static List<File> parse(File folder){
+        List<File> res = new ArrayList<File>();
+        if(folder.isFile()) return res;
         for (final File file:folder.listFiles()){
             if(file.isDirectory()){ 
-                System.out.println("Parsing folder: "+file.getName());
-                parse(file);}
+                for (File fileInFolder:parse(file)) res.add(fileInFolder);
+            }
             else if(isSupported(file)){
-                processFile(file);
-                System.out.println("Supported file found: "+file.getName());
-            } else System.out.println("Unsupported file: " + file.getName());
+                res.add(file);
+                //processFile(file);
+                //System.out.println("Supported file found: "+file.getName());
+            } //else System.out.println("Unsupported file: " + file.getName());
         }
+        return res;
     }
 
     public static void processFile(File file){
@@ -49,7 +53,7 @@ public class Parser {
                     }
 
                     @Override
-                    public void OnNotFound(Track track) {
+                    public void OnNotFound(Lyrics track) {
                         sem.release();
                     }
                 });

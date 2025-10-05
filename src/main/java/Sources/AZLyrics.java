@@ -35,7 +35,6 @@ public class AZLyrics {
         try {
             Document document = Jsoup.connect(url).
                     userAgent(HttpConnection.DEFAULT_UA).get();
-
             if (document.location().contains("azlyrics"))
                 html = document.html();
             else
@@ -49,6 +48,7 @@ public class AZLyrics {
         Pattern p = Pattern.compile(
                 "Sorry about that. -->(.*)",
                 Pattern.DOTALL);
+        Pattern e = Pattern.compile("captcha", Pattern.DOTALL);
         Matcher matcher = p.matcher(html);
 
         if (artist == null || song == null) {
@@ -76,7 +76,9 @@ public class AZLyrics {
             l.setURL(url);
             l.setSource("AZLyrics");
             return l;
-        } else
+        } else if(e.matcher(html).find()) {
+            return new Lyrics(Lyrics.ERROR);
+        } else 
             return new Lyrics(Lyrics.NEGATIVE_RESULT);
     }
 

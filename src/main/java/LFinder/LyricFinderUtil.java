@@ -82,8 +82,8 @@ public class LyricFinderUtil {
 
 
     private static String LineSeparator(String html){
-        return html.replaceAll("<[^>]*>","/n");
-        //return html.replaceAll("<[^>]*>","\r\n");
+        //return html.replaceAll("<[^>]*>","/n");
+        return html.replaceAll("<[^>]*>","//LINEBREAK//");
         //TODO research proper way to insert line breaks in tag lyrics
     }
 
@@ -112,6 +112,7 @@ public class LyricFinderUtil {
     }
 
     private static String Normalizer(String lyrics) {
-        return Jsoup.parse(lyrics).text();
+        String res = Jsoup.parse(lyrics).text();
+        return res.replace("//LINEBREAK//", "\r\n");
     }
 }

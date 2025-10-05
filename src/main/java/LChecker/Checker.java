@@ -121,6 +121,9 @@ public class Checker {
         }
     }
     public static void setLyrics(File file, Lyrics lyrics){
-
+        if(Parser.getFileExtension(file).equals("mp3")) mp3SetLyrics(file.getAbsolutePath(), lyrics.getText());
+    }
+    public static void setLyrics(File file, String lyrics){
+        if(Parser.getFileExtension(file).equals("mp3")) mp3SetLyrics(file.getAbsolutePath(), lyrics);
     }
 }
