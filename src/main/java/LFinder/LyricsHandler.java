@@ -5,14 +5,14 @@ import LClasses.Track;
 
 public class LyricsHandler {
 
-    public static void Find(Track track, LyricFinderListener lyricFinderListener){
+    public static void Find(Track track, LyricFinderListener lyricFinderListener, Integer helper, Boolean retry){
 
-        Thread thread=new Thread(new LyricFinderAsync(track,lyricFinderListener));
+        Thread thread=new Thread(new LyricFinderAsync(track,lyricFinderListener, helper, retry));
         //thread.setPriority(Thread.MAX_PRIORITY);
         thread.start();
     }
-    public static void Find(String artist, String song, LyricFinderListener lyricFinderListener){
-        Find(new Track(song, artist), lyricFinderListener);
+    public static void Find(String artist, String song, LyricFinderListener lyricFinderListener, Integer helper, Boolean retry){
+        Find(new Track(song, artist), lyricFinderListener, helper, retry);
     }
     private static Lyrics SetTrack(Lyrics lyrics, Track track){
         lyrics.setArtist(track.getArtistNames());
@@ -25,10 +25,14 @@ public class LyricsHandler {
 
         private Track track;
         private LyricFinderListener lyricFinderListener;
+        private Integer helper;
+        private Boolean retry;
 
-        public LyricFinderAsync(Track track,LyricFinderListener lyricFinderListener){
+        public LyricFinderAsync(Track track,LyricFinderListener lyricFinderListener, Integer helper, Boolean retry){
             this.track=track;
             this.lyricFinderListener=lyricFinderListener;
+            this.helper = helper;
+            this.retry = retry;
         }
 
         @Override
@@ -36,7 +40,7 @@ public class LyricsHandler {
         public void run() {
                 Lyrics lyrics = LyricFinderUtil.getLyric(
                         track.getArtistNames().split(",")[0].split("/")[0]
-                        , track.getTrackName().split("-")[0]);
+                        , track.getTrackName().split("-")[0], helper, retry);
 
                 if (lyrics.getFlag() == Lyrics.POSITIVE_RESULT) {
                     lyricFinderListener.OnFound(SetTrack(lyrics, track));}

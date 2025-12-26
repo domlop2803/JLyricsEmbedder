@@ -1,7 +1,6 @@
 package FileParser;
 
 import java.io.File;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -23,25 +22,14 @@ public class Parser {
             }
             else if(isSupported(file)){
                 res.add(file);
-                //processFile(file);
-                //System.out.println("Supported file found: "+file.getName());
-            } //else System.out.println("Unsupported file: " + file.getName());
+            }
         }
         return res;
     }
 
-    public static void processFile(File file){
-        if(getFileExtension(file).equals("mp3")){
-            if(Checker.mp3HasLyrics(file)) return;
-            //Search lyrics and assign to str variable
-            String lyrics = "SearchLyrics";
-            Checker.mp3SetLyrics(file.getAbsolutePath(), lyrics);
-        }
-        return;
-    }
     public static void processFiles(List<File> files, Semaphore sem){
         for(File file:files){
-            Track track = getTrack(file);
+            Track track = Checker.getTrack(file);
             try{
                 sem.acquire();
                 LyricsHandler.Find(track.getArtistNames(), track.getTrackName(), new LyricFinderListener() {
@@ -56,7 +44,7 @@ public class Parser {
                     public void OnNotFound(Lyrics track) {
                         sem.release();
                     }
-                });
+                }, 1, false);
             } catch(InterruptedException e){
                 System.out.println(e);
             }
@@ -64,8 +52,16 @@ public class Parser {
     }
 
     public static Boolean isSupported(File file){
-        List<String> supported = Arrays.asList("mp3"); 
+        List<String> supported = Arrays.asList("mp3");
         return supported.contains(getFileExtension(file));
+
+        /*
+        try {
+       day = SupportedFileFormat.valueOf(getFileExtension(file));
+       //yes
+    } catch (IllegalArgumentException ex) {  
+        //nope
+  } */
     }
 
     public static String getFileExtension(File file) {
@@ -78,10 +74,5 @@ public class Parser {
     }
     public static String getFileExtension(String file){
         return getFileExtension(new File(file));
-    }
-    public static Track getTrack(File file){
-        if(getFileExtension(file).equals("mp3")){
-           return Checker.mp3getTrack(file);
-        } else return null;
     }
 }

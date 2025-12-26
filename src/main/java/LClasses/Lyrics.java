@@ -21,6 +21,12 @@ public class Lyrics implements Serializable {
     public Lyrics(int flag) {
         this.mFlag = flag;
     }
+    
+    public Lyrics(int flag, String mTitle, String mArtist){
+        this.mFlag = flag;
+        this.mTitle = mTitle;
+        this.mArtist = mArtist;
+    }
 
     public String getTitle() {
         return mTitle;

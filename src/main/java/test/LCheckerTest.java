@@ -8,12 +8,11 @@ import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.concurrent.Semaphore;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.sound.sampled.UnsupportedAudioFileException;
 
-import com.mpatric.mp3agic.InvalidDataException;
-import com.mpatric.mp3agic.Mp3File;
-import com.mpatric.mp3agic.UnsupportedTagException;
 
 import FileParser.Parser;
 import LChecker.Checker;
@@ -23,98 +22,30 @@ import LFinder.LyricsHandler;
 import LFinder.LyricsHandler.LyricFinderListener;
 
 public class LCheckerTest {
-    private static void CheckerEmbedderTest(){
-        System.out.print("-------------------------------\nChecker and embedder test:\n");
-        //First we normalize our test files:
-        //Checker.mp3SetLyrics("src\\main\\java\\test\\TestFiles\\RingOfFireNoLyrics.mp3", null);
-        //Checker.mp3SetLyrics("src\\main\\java\\test\\TestFiles\\RingOfFireLyrics.mp3", "TestLyrics");
-        Boolean setLyricsCheck = false;
-        try {
-            setLyricsCheck = new Mp3File("src\\main\\java\\test\\TestFiles\\RingOfFireLyrics.mp3").getId3v2Tag().getLyrics().equals("TestLyrics");
-        } catch (UnsupportedTagException | InvalidDataException | IOException e) {
-            e.printStackTrace();
-        }
-        Boolean lyrics = Checker.mp3HasLyrics("src\\main\\java\\test\\TestFiles\\RingOfFireLyrics.mp3");
-        Boolean noLyrics = !Checker.mp3HasLyrics("src\\main\\java\\test\\TestFiles\\RingOfFireNoLyrics.mp3");
-        Boolean unsupported = Checker.mp3HasLyrics("src\\main\\java\\test\\TestFiles\\RingOfFireUnsupported.gba")==null;
-        System.out.println("Lyrics checker test (set and read lyrics): "+setLyricsCheck);
-        System.out.println("Recognize file has lyrics: "+lyrics);
-        System.out.println("Recognize file doesn't have lyrics: "+noLyrics);
-        System.out.println("Recognize file unsupported extension: "+unsupported);
-    }
 
-
-    private static void FileParserTest(){
-        System.out.print("-------------------------------\nFile parser test:\n");
-        File folder = new File("src\\main\\java\\test");
-        Parser.parse(folder);
-    }
-
-    private static void FinderTest(String artist, String songName){
-        LyricsHandler.Find(artist, songName, new LyricFinderListener() {
-
-            @Override
-            public void OnFound(Lyrics lyrics) {
-                System.out.println("Found -> "+lyrics);
-            }
-            @Override
-            public void OnNotFound(Lyrics track) {
-                System.out.println("NotFound -> "+track.getTitle() + " - "+track.getArtist());
-            }
-        });
-    }
-
-    //Works, maybe implement a method in Parser that receives a list of files and a semaphore and parses them to find their lyrics
-    private static void SemaphoreTest(){
-        List<String> files = List.of("ring of fire","cry,cry,cry","heart of gold", "folsom prison blues");
-        Semaphore sem = new Semaphore(1);
-        for(String file:files){
-            try{
-                sem.acquire();
-                System.out.println("File "+files.indexOf(file)+ " got permit at "+LocalDateTime.now());
-                LyricsHandler.Find("johnny cash", file, new LyricFinderListener() {
-
-            @Override
-            public void OnFound(Lyrics lyrics) {
-                System.out.println("Found -> "+lyrics.getTitle());
-            System.out.println("File "+files.indexOf(file)+ " released permit at "+LocalDateTime.now());
-            sem.release();
-            }
-            @Override
-            public void OnNotFound(Lyrics track) {
-                System.out.println("NotFound -> "+track.getTitle()+" - " +track.getArtist());
-            System.out.println("File "+files.indexOf(file)+ " released permit at "+LocalDateTime.now());
-            sem.release();
-            }
-        });
-            } catch(InterruptedException e){
-                System.out.println(e);
-            }
-        }
-    }
-
-    private static void FindAndWriteTest(String artist, String songName, String filename){
+    private static void FindAndWriteTest(String artist, String songName, String filename, Integer helper, Boolean retry){
         LyricsHandler.Find(artist, songName, new LyricFinderListener() {
             @Override
             public void OnFound(Lyrics lyrics) {
-                Checker.mp3SetLyrics(filename, lyrics.getText());
+                Checker.setLyrics(new File(filename), lyrics.getText());
             }
             @Override
             public void OnNotFound(Lyrics track) {
                 System.out.println("NotFound -> "+track.getTitle()+" - "+track.getArtist());
             }
-        });
+        }, helper, retry);
     }
+    
     public static void ClassifyInstrumentalTracks(String uri){
         Semaphore sem = new Semaphore(1);
         File folder = new File(uri);
         List<File> compatible = Parser.parse(folder);
         System.out.println(compatible.size()+" compatible files found.");
-        compatible.removeIf(e->Checker.mp3HasLyrics(e));
-        System.out.println(compatible.size()+" compatible files found without lyrics.");
+        compatible.removeIf(e->Checker.hasLyrics(e)||!Checker.hasTag(e));
+        System.out.println(compatible.size()+" compatible files found with tags and without lyrics.");
         
         for(File file:compatible){
-            Track track = Parser.getTrack(file);
+            Track track = Checker.getTrack(file);
             System.out.println("Next track:");
             try{
                 sem.acquire();
@@ -126,7 +57,8 @@ public class LCheckerTest {
                     System.out.println("Unrecognized input: "+ans+", please answer s/n");
                     ans = input.nextLine();
                 }
-                if(ans.equals("s")) Checker.mp3SetLyrics(file.getAbsolutePath(), "[Instrumental]");
+                if(ans.equals("s")) Checker.setLyrics(file, "[Instrumental]");
+                input.close();
                 sem.release();
             } catch(InterruptedException e){
                 System.out.println(e);
@@ -140,7 +72,7 @@ public class LCheckerTest {
         List<Track> tracks = new ArrayList<Track>();
         
         for(File file:compatible){
-            Track track = Parser.getTrack(file);
+            Track track = Checker.getTrack(file);
             if(tracks.contains(track)) System.out.println("Duplicated track: "+track);
             else tracks.add(track);
         }
@@ -150,12 +82,12 @@ public class LCheckerTest {
         File folder = new File(uri);
         List<File> compatible = Parser.parse(folder);
         System.out.println(compatible.size()+" compatible files found.");
-        compatible.removeIf(e->Checker.mp3HasLyrics(e));
-        System.out.println(compatible.size()+" compatible files found without lyrics.");
+        compatible.removeIf(e->Checker.hasLyrics(e)||!Checker.hasTag(e));
+        System.out.println(compatible.size()+" compatible files found with tags and without lyrics.");
         System.out.println("Parsing "+compatible.size()+" files. Start time: "+LocalDateTime.now());
         
         for(File file:compatible){
-            Track track = Parser.getTrack(file);
+            Track track = Checker.getTrack(file);
             try{
                 sem.acquire();
                 System.out.println("Searching " + track.toString());
@@ -197,12 +129,11 @@ public class LCheckerTest {
                                 Thread.sleep(2500 + rand.nextInt(1000));
                                 sem.release();
                             } catch (InterruptedException e) {
-                                // TODO Auto-generated catch block
                                 e.printStackTrace();
                             }
                         }
                     }
-                });
+                }, 1, true);
             } catch(InterruptedException e){
                 System.out.println(e);
             }
@@ -215,12 +146,12 @@ public class LCheckerTest {
         File folder = new File(uri);
         List<File> compatible = Parser.parse(folder);
         System.out.println(compatible.size()+" compatible files found.");
-        compatible.removeIf(e->Checker.mp3HasLyrics(e));
-        System.out.println(compatible.size()+" compatible files found without lyrics.");
+        compatible.removeIf(e->Checker.hasLyrics(e)||!Checker.hasTag(e));
+        System.out.println(compatible.size()+" compatible files found with tags and without lyrics.");
         System.out.println("Parsing "+compatible.size()+" files. Start time: "+LocalDateTime.now());
         
         for(File file:compatible){
-            Track track = Parser.getTrack(file);
+            Track track = Checker.getTrack(file);
             try{
                 sem.acquire();
                 System.out.println("Searching " + track.toString());
@@ -254,7 +185,7 @@ public class LCheckerTest {
                             if(ans.equals("y")) Thread.currentThread().interrupt();
                             else sem.release();
                         } else{
-                            System.out.println("Lyrics not found. Would you like to retry with manual input? y/n/i(Instrumental)/abort");
+                            System.out.println("Lyrics not found for song: "+track.getTitle()+" by "+track.getArtist()+". Would you like to retry with manual input? y/n/i(Instrumental)/abort");
                             ans = input.nextLine();
                             while(!ans.equals("y")&&!ans.equals("n")&&!ans.equals("abort")&&!ans.equals("i")){
                                 System.out.println("Unrecognized input: "+ans+", please answer y/n/i/abort");
@@ -265,7 +196,7 @@ public class LCheckerTest {
                                 ans= input.nextLine();
                                 System.out.println("Input the song title");
                                 String ans2= input.nextLine();
-                                FindAndWriteTest(ans, ans2, file.getAbsolutePath());
+                                FindAndWriteTest(ans, ans2, file.getAbsolutePath(), 1, true);
                                 try {
                                     Thread.sleep(4500);
                                     sem.release();
@@ -288,14 +219,14 @@ public class LCheckerTest {
                             }
                         }
                     }
-                });
+                }, 1, true);
             } catch(InterruptedException e){
                 System.out.println(e);
             }
         }
         System.out.println("Finish at: "+LocalDateTime.now());
     }
-    public static void main(String[] args) throws UnsupportedTagException, InvalidDataException, UnsupportedAudioFileException, IOException{
+    public static void main(String[] args) throws Exception, UnsupportedAudioFileException, IOException{
         //CheckerEmbedderTest();
         //FileParserTest();
         //FindAndWriteTest("johnny cash", "ring of fire", "src\\main\\java\\test\\TestFiles\\RingOfFireLyrics.mp3");
@@ -309,6 +240,8 @@ public class LCheckerTest {
         //System.out.println(Checker.mp3HasLyrics("H:\\Music\\Daft Punk\\Random Access Memories\\01 - Give Life Back to Music.mp3"));
         //FinderTest("daft punk", "give life back to music");
         //Checker.mp3SetLyrics("H:\\Music\\Daft Punk\\Random Access Memories\\01 - Give Life Back to Music.mp3", "Just turn on the music");
-        //ManualFolderProcesserTest("H:\\Music\\Sounds good to me",1);
+        Logger[] pin = new Logger[]{ Logger.getLogger("org.jaudiotagger") };
+        for (Logger l : pin) l.setLevel(Level.OFF);
+        ManualFolderProcesserTest("H:\\Music\\Sounds good to me",1);
     }
 }

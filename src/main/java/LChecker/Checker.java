@@ -1,129 +1,137 @@
 package LChecker;
 
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.UnsupportedAudioFileException;
-
-import com.mpatric.mp3agic.ID3v1;
-import com.mpatric.mp3agic.ID3v2;
-import com.mpatric.mp3agic.ID3v24Tag;
-import com.mpatric.mp3agic.InvalidDataException;
-import com.mpatric.mp3agic.Mp3File;
-import com.mpatric.mp3agic.NotSupportedException;
-import com.mpatric.mp3agic.UnsupportedTagException;
+import org.jaudiotagger.audio.AudioFile;
+import org.jaudiotagger.audio.AudioFileIO;
+import org.jaudiotagger.audio.exceptions.CannotReadException;
+import org.jaudiotagger.audio.exceptions.CannotWriteException;
+import org.jaudiotagger.audio.exceptions.InvalidAudioFrameException;
+import org.jaudiotagger.audio.exceptions.ReadOnlyFileException;
+import org.jaudiotagger.audio.mp3.MP3File;
+import org.jaudiotagger.tag.FieldKey;
+import org.jaudiotagger.tag.Tag;
+import org.jaudiotagger.tag.TagException;
+import org.jaudiotagger.tag.id3.ID3v1Tag;
+import org.jaudiotagger.tag.id3.ID3v24Tag;
 
 import FileParser.Parser;
 import LClasses.Lyrics;
 import LClasses.Track;
 
 import java.io.*;
-import java.nio.file.Files;
 public class Checker {
-    //Assuming the files are supported audio files
-    public static Boolean hasLyrics(String file){
-        Boolean res = true;
-        File audioFile = new File(file);
-        AudioInputStream in;
+    //returns true if the file has a tag and lyrics in it
+    public static Boolean hasLyrics(File file){
         try {
-            in = AudioSystem.getAudioInputStream(audioFile);
-            System.out.println(in.getFormat());
-            res = false;
-            System.out.println(audioFile.getName() + " is of an supported type.");
-        } catch (UnsupportedAudioFileException e) {
-            System.out.println(audioFile.getName() + " is of an unsupported type.");
+            AudioFile audioFile = AudioFileIO.read(file);
+            Tag tag = audioFile.getTag();
+            if(tag!=null){
+                String lyrics = tag.getFirst(FieldKey.LYRICS);
+                if(lyrics.isBlank()||lyrics.isEmpty()) return false;
+                else return true;
+            }
+            return false;
+        } catch (CannotReadException | IOException | TagException | ReadOnlyFileException
+                | InvalidAudioFrameException e) {
             e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.out.println(audioFile.getName() + " resulted in an unexpected error.");
+            return null;
         }
-        return res;
     }
-    public static Boolean mp3HasLyrics(File file){
-        return mp3HasLyrics(file.getAbsolutePath());
+
+    public static Boolean hasLyrics(String file){
+        return hasLyrics(new File(file));
     }
-    public static Boolean mp3HasLyrics(String filename) {
+
+    public static Boolean hasTag(File file){
+        try {
+            AudioFile audioFile = AudioFileIO.read(file);
+            if(audioFile.getTag()==null || audioFile.getTag().isEmpty()) return false;
+            else return true;
+        } catch (CannotReadException | IOException | TagException | ReadOnlyFileException
+                | InvalidAudioFrameException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static Boolean mp3HasLyrics(File file) {
         //We use ID3v2 because ID3v1 doesnt support lyrics
         //Returning true means the file won't be processed any more,
         //So if we try to process an unsupported file the error won't cascade 
         //Consider returning null in case of exception
-        if(!Parser.getFileExtension(filename).equals("mp3")){
-            System.out.println("Tried to process a " + Parser.getFileExtension(filename) + " file with an mp3 oriented function.");
+        if(!Parser.getFileExtension(file).equals("mp3")){
+            System.out.println("Tried to process a " + Parser.getFileExtension(file) + " file with an mp3 oriented function.");
             return null;
         }
         Boolean res = true;
-        Mp3File mp3file;
+        MP3File mp3file;
         try {
-            mp3file = new Mp3File(filename);  
-            if(mp3file.hasId3v2Tag()){
-                String lyrics = mp3file.getId3v2Tag().getLyrics();
+            mp3file = new MP3File(file);  
+            if(mp3file.hasID3v2Tag()){
+                String lyrics = mp3file.getID3v2Tag().getFirst(FieldKey.LYRICS);
                 if(lyrics!=null) res = !(lyrics.isBlank()||lyrics.isEmpty());
                 else res = false;
-            } else if (mp3file.hasId3v1Tag()){
+            } else if (mp3file.hasID3v1Tag()){
                 //If the mp3 doesnt have an id3v2 tag it cant support lyrics, so we return false
                 res = false;
                 //We update the mp3 id tag to support embedded lyrics
-                ID3v1 oldTag = mp3file.getId3v1Tag();
-                ID3v2 newTag = new ID3v24Tag();
-                newTag.setAlbum(oldTag.getAlbum());
-                newTag.setArtist(oldTag.getArtist());
-                newTag.setComment(oldTag.getComment());
-                newTag.setTitle(oldTag.getTitle());
-                newTag.setGenreDescription(oldTag.getGenreDescription());
-                newTag.setTrack(oldTag.getTrack());
-                newTag.setYear(oldTag.getYear());
-                newTag.setGenre(oldTag.getGenre());
-                mp3file.setId3v2Tag(newTag);
+                ID3v1Tag oldTag = mp3file.getID3v1Tag();
+                ID3v24Tag newTag = new ID3v24Tag();
+                newTag.setField(FieldKey.ALBUM,oldTag.getFirstAlbum());
+                newTag.setField(FieldKey.ARTIST,oldTag.getFirstArtist());
+                newTag.setField(FieldKey.COMMENT,oldTag.getFirstComment());
+                newTag.setField(FieldKey.TITLE,oldTag.getFirstTitle());
+                newTag.setField(FieldKey.GENRE,oldTag.getFirstGenre());
+                newTag.setField(FieldKey.TRACK,oldTag.getFirstTrack());
+                newTag.setField(FieldKey.YEAR,oldTag.getFirstYear());
+                mp3file.setID3v2Tag(newTag);
                 
-                String newFileName = filename.substring(0,filename.length()-4)+"C.mp3";
-                mp3file.save(newFileName);
-                cleanFiles(new File(filename), new File(newFileName));
+                mp3file.commit();
             } else {
                 //If the file doesn't have any id tag, we don't add lyrics to it
             }
-        } catch (UnsupportedTagException | InvalidDataException | IOException | NotSupportedException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             return null;
         } 
         return res;
     }
 
-    public static void mp3SetLyrics(String filename, String lyrics){
+    public static Track getTrack(File file){
         try {
-            Mp3File mp3 = new Mp3File(filename);
-            if(mp3.hasId3v2Tag()){
-                ID3v2 tag = mp3.getId3v2Tag();
-                tag.setLyrics(lyrics);
-                String newFileName = filename.substring(0,filename.length()-4)+"C.mp3";
-                mp3.save(newFileName);
-                cleanFiles(new File(filename), new File(newFileName));
-            } else return;
-        } catch (Exception e) {
+            AudioFile audioFile = AudioFileIO.read(file);
+            if(audioFile.getTag()==null) return null;
+            return new Track(audioFile.getTag().getFirst(FieldKey.TITLE), audioFile.getTag().getFirst(FieldKey.ARTIST));
+        } catch (CannotReadException | IOException | TagException | ReadOnlyFileException
+                | InvalidAudioFrameException e) {
             e.printStackTrace();
+            return null;
         }
     }
-    public static Track mp3getTrack(File file){
-        Track res = null;
+
+    public static String getLyrics(File file){
         try {
-            Mp3File mp3 = new Mp3File(file);
-            res = new Track(mp3.getId3v2Tag().getTitle(), mp3.getId3v2Tag().getArtist());
-        } catch (UnsupportedTagException | InvalidDataException | IOException e) {
+            AudioFile f = AudioFileIO.read(file);
+            return f.getTag().getFirst(FieldKey.LYRICS);
+        } catch (CannotReadException | IOException | TagException | ReadOnlyFileException
+                | InvalidAudioFrameException e) {
             e.printStackTrace();
-        }
-        return res;
-    }
-    public static void cleanFiles(File oldFile, File newFile){
-        //Method needed for deleting the original file and renaming the updated file with the old one's name.
-        try {
-            Files.deleteIfExists(oldFile.toPath());
-            Files.move(newFile.toPath(),oldFile.toPath());
-        } catch (IOException e) {
-            e.printStackTrace();
+            return null;
         }
     }
-    public static void setLyrics(File file, Lyrics lyrics){
-        if(Parser.getFileExtension(file).equals("mp3")) mp3SetLyrics(file.getAbsolutePath(), lyrics.getText());
-    }
+
     public static void setLyrics(File file, String lyrics){
-        if(Parser.getFileExtension(file).equals("mp3")) mp3SetLyrics(file.getAbsolutePath(), lyrics);
+        try {
+            AudioFile audioFile = AudioFileIO.read(file);
+            if(audioFile.getTag()==null) return;
+            audioFile.getTag().setField(FieldKey.LYRICS, lyrics);
+            audioFile.commit();
+        } catch (CannotReadException | IOException | TagException | ReadOnlyFileException
+                | InvalidAudioFrameException |CannotWriteException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void setLyrics(File file, Lyrics lyrics){
+        setLyrics(file, lyrics.getText());
     }
 }

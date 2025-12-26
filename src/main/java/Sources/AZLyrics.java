@@ -5,6 +5,7 @@ import org.jsoup.helper.HttpConnection;
 import org.jsoup.nodes.Document;
 
 import LClasses.Lyrics;
+import LFinder.LyricFinderUtil;
 
 import java.io.IOException;
 import java.util.Locale;
@@ -15,13 +16,11 @@ public class AZLyrics {
     public static final String domain = "www.azlyrics.com/";
 
     public static Lyrics Find(String artist, String song) {
-        String htmlArtist = artist.replaceAll("[\\s'\"-]", "")
-                .replaceAll("&", "and").replaceAll("[^A-Za-z0-9]", "");
-        String htmlSong = song.replaceAll("[\\s'\"-]", "")
-                .replaceAll("&", "and").replaceAll("[^A-Za-z0-9]", "");
+        String htmlArtist = LyricFinderUtil.normalizeToHtmlNoSpaces(artist);
+        String htmlSong = LyricFinderUtil.normalizeToHtmlNoSpaces(song);
 
         if (htmlArtist.toLowerCase(Locale.getDefault()).startsWith("the"))
-            htmlArtist = htmlArtist.substring(3);
+            htmlArtist = htmlArtist.substring(3).trim();
 
         String urlString = String.format(
                 "http://www.azlyrics.com/lyrics/%s/%s.html",
@@ -40,10 +39,9 @@ public class AZLyrics {
             else
                 throw new IOException("Redirected to wrong domain " + document.location());
         } catch (HttpStatusException e) {
-            return new Lyrics(Lyrics.NO_RESULT);
+            return new Lyrics(Lyrics.NO_RESULT, song, artist);
         } catch (IOException e) {
-            //e.printStackTrace();
-            return new Lyrics(Lyrics.ERROR);
+            return new Lyrics(Lyrics.ERROR, song, artist);
         }
         Pattern p = Pattern.compile(
                 "Sorry about that. -->(.*)",
@@ -77,9 +75,9 @@ public class AZLyrics {
             l.setSource("AZLyrics");
             return l;
         } else if(e.matcher(html).find()) {
-            return new Lyrics(Lyrics.ERROR);
+            return new Lyrics(Lyrics.ERROR, song, artist);
         } else 
-            return new Lyrics(Lyrics.NEGATIVE_RESULT);
+            return new Lyrics(Lyrics.NEGATIVE_RESULT, song, artist);
     }
 
 }

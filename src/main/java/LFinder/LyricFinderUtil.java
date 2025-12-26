@@ -2,6 +2,7 @@ package LFinder;
 
 
 import Sources.AZLyrics;
+import Sources.Genius;
 
 import org.jsoup.Jsoup;
 
@@ -13,58 +14,40 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 public class LyricFinderUtil {
 
-    public static Lyrics getLyric(String ArtistName, String TrackName){
-        return getLyric(ArtistName, TrackName,2);
-//
-//        try {
-//            Lyrics lyrics=new Lyrics(NO_RESULT);
-//            lyrics=Genius.Find(ArtistName,TrackName);
-//           // System.out.println(lyrics);
-//            if(IsFound(lyrics)) {
-//                return NormalizeLyric(lyrics);
-//            }
-//            else {
-//                lyrics=Genius.Find2(ArtistName,TrackName);
-//                if(IsFound(lyrics)) {
-//                    return NormalizeLyric(lyrics);
-//                }
-//                else
-//                return getLyric(ArtistName,TrackName,1);
-//            }
-//        }
-//        catch (Exception e){
-//            return new Lyrics(NO_RESULT);
-//        }
-
+    public static Lyrics getLyric(String ArtistName, String TrackName, Integer helper){
+        return getLyric(ArtistName, TrackName,helper, false);
     }
 
-    private static Lyrics getLyric(String ArtistName, String TrackName, int Helper){
+    public static Lyrics getLyric(String ArtistName, String TrackName, Integer Helper, Boolean retry){
         Lyrics lyrics=new Lyrics(Lyrics.NO_RESULT);
 
         if(Helper>8){
-            return new Lyrics(Lyrics.NO_RESULT);
+            return new Lyrics(Lyrics.NO_RESULT, TrackName, ArtistName);
         }
         else {
             switch (Helper){
-                case 2:
+                case 1:
                     lyrics= AZLyrics.Find(ArtistName,TrackName);
                     if(IsFound(lyrics)){
                         return NormalizeLyric(lyrics);
                     }
-                    else getLyric(ArtistName,TrackName,3);
-                    break;
+                    else return getLyric(ArtistName,TrackName,retry? 2:9, retry);
+                case 2:
+                    lyrics = Genius.find(ArtistName, TrackName);
+                    if(IsFound(lyrics))
+                        return NormalizeLyric(lyrics);
+                    else return getLyric(ArtistName, TrackName, retry? 9:9, retry);
             }
         }
         return lyrics;
     }
 
     private static Lyrics NormalizeLyric(Lyrics lyrics){
-        String ly= RemoveSingersName(Normalizer(LineSeparator(
-                lyrics.getText())));
+        String ly= RemoveSingersName(Normalizer(LineSeparator(lyrics.getText())));
         lyrics.setText(ly);
+        if(ly.equals("INSTRUMENTAL"))lyrics.setText("[Instrumental]");
         return lyrics;
     }
 
@@ -84,7 +67,6 @@ public class LyricFinderUtil {
     private static String LineSeparator(String html){
         //return html.replaceAll("<[^>]*>","/n");
         return html.replaceAll("<[^>]*>","//LINEBREAK//");
-        //TODO research proper way to insert line breaks in tag lyrics
     }
 
     private static List<String> ExtractSingersName(String lyric){
@@ -114,5 +96,18 @@ public class LyricFinderUtil {
     private static String Normalizer(String lyrics) {
         String res = Jsoup.parse(lyrics).text();
         return res.replace("//LINEBREAK//", "\r\n");
+    }
+
+    public static String normalizeToHtmlNoSpaces(String toSearch){
+        toSearch = java.text.Normalizer.normalize(toSearch, java.text.Normalizer.Form.NFKD);
+        toSearch = toSearch.replaceAll("[\\p{InCombiningDiacriticalMarks}]", "");
+        return toSearch.trim().replaceAll("[\\s'\"-]", "")
+                .replaceAll("&", "and").replaceAll("[^A-Za-z0-9]", "");
+    }
+    public static String normalizeToHtml(String toSearch){
+        toSearch = java.text.Normalizer.normalize(toSearch, java.text.Normalizer.Form.NFKD);
+        toSearch = toSearch.replaceAll("[\\p{InCombiningDiacriticalMarks}]", "");
+        return toSearch.trim().replaceAll("['\"-]", "")
+                .replaceAll("&", "and").replaceAll("[^A-Za-z0-9\s]", "");
     }
 }
